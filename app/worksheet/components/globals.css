@@ -1,0 +1,11 @@
+@media print {
+  /* Sembunyikan navigasi dan butang */
+  nav,
+  .print\:hidden {
+    display: none !important;
+  }
+  /* Pastikan halaman penuh putih */
+  body {
+    background: white !important;
+  }
+}
