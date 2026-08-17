@@ -19,7 +19,6 @@ export async function POST(req: NextRequest) {
     const curriculumName = formData.get('curriculumName') as string || 'KSSR Semakan 2017';
     const text = await file.text();
 
-    // Parse CSV
     const records = parse(text, {
       columns: true,
       skip_empty_lines: true,
@@ -30,37 +29,37 @@ export async function POST(req: NextRequest) {
     let skipped = 0;
 
     // Dapatkan atau cipta kurikulum
-    let { data: curriculum, error: currError } = await supabase
+    let { data: curriculum } = await supabase
       .from('curriculums')
       .select('id')
       .eq('name', curriculumName)
       .single();
 
     if (!curriculum) {
-      const { data: newCurr, error: createErr } = await supabase
+      const { data: newCurr } = await supabase
         .from('curriculums')
         .insert({ name: curriculumName })
         .select('id')
         .single();
-      if (createErr) throw createErr;
       curriculum = newCurr;
     }
 
-    for (const record of records) {
-      // Dapatkan subjek berdasarkan code
-      const { data: subject, error: subjError } = await supabase
+    for (const rec of records as any[]) {
+      const record = rec as any;
+
+      // Cari subjek berdasarkan code
+      const { data: subject } = await supabase
         .from('subjects')
         .select('id')
         .eq('code', record.subject_code)
         .single();
 
-      if (subjError || !subject) {
-        console.warn(`Subjek dengan code ${record.subject_code} tidak dijumpai. Langkau.`);
+      if (!subject) {
         skipped++;
         continue;
       }
 
-      // Dapatkan atau cipta domain
+      // Cari atau cipta domain
       let { data: domain } = await supabase
         .from('domains')
         .select('id')
@@ -77,7 +76,12 @@ export async function POST(req: NextRequest) {
         domain = newDomain;
       }
 
-      // Dapatkan atau cipta topik
+      if (!domain) {
+        skipped++;
+        continue;
+      }
+
+      // Cari atau cipta topik
       let { data: topic } = await supabase
         .from('topics')
         .select('id')
@@ -94,11 +98,16 @@ export async function POST(req: NextRequest) {
         topic = newTopic;
       }
 
-      // Masukkan atau kemaskini standard pembelajaran
+      if (!topic) {
+        skipped++;
+        continue;
+      }
+
+      // Masukkan standard pembelajaran
       const { error: lsError } = await supabase
         .from('learning_standards')
         .upsert({
-          curriculum_id: curriculum.id,
+          curriculum_id: curriculum?.id,
           year: parseInt(record.year),
           subject_id: subject.id,
           domain_id: domain.id,
@@ -106,12 +115,11 @@ export async function POST(req: NextRequest) {
           content_standard: record.content_standard || null,
           learning_standard: record.learning_standard || null,
           performance_standard: record.performance_standard || null,
-          kbat_elements: record.kbat_elements ? record.kbat_elements.split('|').map(s => s.trim()) : [],
-          cross_curricular_elements: record.cross_curricular_elements ? record.cross_curricular_elements.split('|').map(s => s.trim()) : [],
+          kbat_elements: record.kbat_elements ? record.kbat_elements.split('|').map((s: string) => s.trim()) : [],
+          cross_curricular_elements: record.cross_curricular_elements ? record.cross_curricular_elements.split('|').map((s: string) => s.trim()) : [],
         }, { onConflict: 'curriculum_id, year, subject_id, topic_id, content_standard, learning_standard' });
 
       if (lsError) {
-        console.error('Upsert error:', lsError);
         skipped++;
       } else {
         inserted++;
