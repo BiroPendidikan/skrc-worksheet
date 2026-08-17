@@ -1,8 +1,26 @@
 export function buildSystemPrompt(options: {
-  banjirMode?: boolean;
+  contextMode?: 'harian' | 'banjir' | 'penyakit' | 'jerebu';
   homeLearning?: boolean;
 }) {
-  const base = `Anda seorang pakar penjana kandungan pendidikan rendah Malaysia. Ikut sepenuhnya kurikulum yang diberikan. HASILKAN HANYA FORMAT JSON SAHA seperti yang diminta. Jangan tambah teks lain.
+  let contextInstruction = '';
+
+  switch (options.contextMode) {
+    case 'banjir':
+      contextInstruction = 'Gunakan konteks banjir, keselamatan air, pusat pemindahan, kebersihan diri, dan bantuan kemanusiaan. Beberapa soalan berkaitan banjir.';
+      break;
+    case 'penyakit':
+      contextInstruction = 'Gunakan konteks penyakit berjangkit, kesihatan, kebersihan diri, vaksinasi, penjarakan sosial, dan pencegahan. Beberapa soalan berkaitan penyakit berjangkit.';
+      break;
+    case 'jerebu':
+      contextInstruction = 'Gunakan konteks jerebu udara, kualiti udara, kesihatan pernafasan, penggunaan pelitup muka, dan langkah keselamatan. Beberapa soalan berkaitan jerebu.';
+      break;
+    case 'harian':
+    default:
+      contextInstruction = 'Gunakan konteks kehidupan harian biasa.';
+      break;
+  }
+
+  return `Anda seorang pakar penjana kandungan pendidikan rendah Malaysia. Ikut sepenuhnya kurikulum yang diberikan. HASILKAN HANYA FORMAT JSON SAHA seperti yang diminta. Jangan tambah teks lain.
 
 ARAHAN PENTING:
 - Soalan mesti sesuai dengan umur murid dan tahun yang dipilih.
@@ -11,15 +29,9 @@ ARAHAN PENTING:
 - Jangan cipta standard pembelajaran palsu.
 - Elakkan soalan hafalan semata-mata.
 - Sertakan skema jawapan ringkas dalam ruang 'answer'.
-- Jika konteks banjir dipilih, masukkan beberapa soalan berkaitan banjir, keselamatan, air, komuniti. Tapi jangan semua.`;
+- ${contextInstruction}
 
-  if (options.homeLearning) {
-    return base + ` Lembaran kerja ini untuk pembelajaran di rumah tanpa guru. Pastikan aktiviti selamat, guna bahan mudah, arahan ringkas.`;
-  }
-  if (options.banjirMode) {
-    return base + ` Gunakan konteks kehidupan sebenar banjir, pusat pemindahan, keselamatan air, kebersihan, dll.`;
-  }
-  return base;
+Lembaran kerja ini untuk pembelajaran di rumah tanpa guru. Pastikan aktiviti selamat, guna bahan mudah, arahan ringkas.`;
 }
 
 export function buildUserPrompt(params: {
@@ -33,6 +45,7 @@ export function buildUserPrompt(params: {
   language: string;
   estimatedTime: string;
   instructions?: string;
+  contextMode?: 'harian' | 'banjir' | 'penyakit' | 'jerebu';
 }) {
   return `Jana lembaran kerja dengan spesifikasi berikut:
 - Tahun: ${params.year}
@@ -45,6 +58,7 @@ export function buildUserPrompt(params: {
 - Bahasa: ${params.language === 'Dwibahasa' ? 'Dwibahasa (BM dan BI)' : params.language}
 - Tempoh Aktiviti: ${params.estimatedTime}
 ${params.instructions ? `- Arahan Tambahan: ${params.instructions}` : ''}
+${params.contextMode && params.contextMode !== 'harian' ? `- Mod Khas: ${params.contextMode}` : ''}
 
 Format output JSON (strict):
 {
@@ -55,7 +69,7 @@ Format output JSON (strict):
       "number": 1,
       "type": "multiple_choice | fill_blank | short_answer | true_false | matching | structure | problem_solving",
       "question": "string",
-      "options": ["A", "B", "C", "D"], // hanya untuk multiple_choice
+      "options": ["A", "B", "C", "D"],
       "answer": "string",
       "marks": 1,
       "cognitive_level": "Asas | Aplikasi | Analisis | Menilai | Mencipta"
